@@ -1,101 +1,166 @@
-import Image from "next/image";
+'use client';
+import { useState, useRef } from 'react';
+import * as fabric from 'fabric';
+import * as pdfjsLib from 'pdfjs-dist/build/pdf';
+
+// Configurar manualmente el worker de PDF.js con una URL desde la CDN
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.worker.min.mjs';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [result, setResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fabricCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      alert('Por favor, selecciona un archivo');
+      return;
+    }
+
+    setLoading(true);
+
+    const formData = new FormData();
+    formData.append('document', selectedFile);
+
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al subir el documento');
+      }
+
+      const data = await response.json();
+      setResult(data.result);
+      setLoading(false);
+
+      // Renderizar el PDF con los recuadros después de obtener los resultados
+      renderPdfWithBoxes(selectedFile, data.result);
+    } catch (error) {
+      console.error('Error:', error);
+      setLoading(false);
+    }
+  };
+
+  // Función para renderizar el PDF con los recuadros superpuestos
+  const renderPdfWithBoxes = async (file: File, result: any) => {
+    const pdfCanvas = canvasRef.current; // Canvas para el PDF
+    const fileReader = new FileReader();
+  
+    fileReader.onload = async function () {
+      const pdfData = new Uint8Array(this.result as ArrayBuffer);
+      const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+      const page = await pdf.getPage(1); // Renderizar la primera página
+  
+      const viewport = page.getViewport({ scale: 1 });
+      pdfCanvas!.width = viewport.width;
+      pdfCanvas!.height = viewport.height;
+  
+      const renderContext = {
+        canvasContext: pdfCanvas!.getContext('2d')!,
+        viewport: viewport,
+      };
+  
+      // Renderizar el PDF en el canvas de fondo
+      await page.render(renderContext).promise;
+  
+      // Crear un segundo canvas para superponer los recuadros con fabric.js
+      const fabricCanvas = new fabric.Canvas(fabricCanvasRef.current!);
+      fabricCanvas.setWidth(viewport.width);
+      fabricCanvas.setHeight(viewport.height);
+      fabricCanvas.selection = false;
+  
+      // Recorrer los campos del resultado y dibujar los recuadros
+      const document = result.documents[0]; // Asumimos que hay al menos un documento
+      if (document && document.fields) {
+        Object.keys(document.fields).forEach((fieldName) => {
+          const field = document.fields[fieldName];
+          const { boundingRegions, valueString } = field; // Extraer el texto y la región de cada campo
+  
+          if (boundingRegions && boundingRegions.length > 0) {
+            boundingRegions.forEach((region: any) => {
+              const { polygon } = region;
+  
+              // Extraer las coordenadas normalizadas del polígono
+              const [x1, y1, x2, y2, x3, y3, x4, y4] = polygon;
+  
+              // Escalar las coordenadas al tamaño real del lienzo
+              const scaledX1 = x1 * viewport.width;
+              const scaledY1 = y1 * viewport.height;
+              const scaledX3 = x3 * viewport.width;
+              const scaledY3 = y3 * viewport.height;
+  
+              // Crear el recuadro en el canvas de fabric.js
+              const rect = new fabric.Rect({
+                left: scaledX1,
+                top: scaledY1,
+                width: scaledX3 - scaledX1,
+                height: scaledY3 - scaledY1,
+                fill: 'rgba(0, 0, 255, 0.1)',
+                stroke: 'blue',
+                strokeWidth: 2,
+                selectable: true,
+              });
+  
+              const text = new fabric.Text(valueString || fieldName, {
+                left: scaledX1,
+                top: scaledY1 - 20, // Ajustar el texto arriba del recuadro
+                fontSize: 16,
+                fill: 'blue',
+              });
+  
+              fabricCanvas.add(rect);
+              fabricCanvas.add(text);
+            });
+          }
+        });
+      } else {
+        console.error('El resultado no tiene un formato esperado. No se puede procesar.');
+      }
+    };
+  
+    fileReader.readAsArrayBuffer(file);
+  };
+  
+  
+  
+  return (
+    <div style={{ display: 'flex', gap: '20px' }}>
+      {/* Columna izquierda para mostrar los resultados en JSON */}
+      <div style={{ width: '50%' }}>
+        <h2>Subir Documento</h2>
+        <input type="file" onChange={handleFileChange} accept="application/pdf" />
+        <button onClick={handleUpload} disabled={loading}>
+          {loading ? 'Procesando...' : 'Subir Documento'}
+        </button>
+
+        {result && (
+          <div>
+            <h3>Resultados del análisis</h3>
+            <pre>{JSON.stringify(result, null, 2)}</pre>
+          </div>
+        )}
+      </div>
+
+      {/* Columna derecha para visualizar el PDF con recuadros */}
+      <div style={{ position: 'relative', width: '100%', height: 'auto' }}>
+  {/* Canvas para el PDF */}
+  <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, zIndex: 0 }}></canvas>
+  
+  {/* Canvas para los recuadros de fabric.js */}
+  <canvas ref={fabricCanvasRef} style={{ position: 'absolute', top: 0, left: 0, zIndex: 1 }}></canvas>
+</div>
+
     </div>
   );
 }
