@@ -80,45 +80,40 @@ export default function Home() {
       fabricCanvas.setHeight(viewport.height);
       fabricCanvas.selection = false;
   
-      // Factor de escala para ajustar el tamaño de los recuadros
-      const scaleFactor = 0.1; // Prueba ajustando este valor (ejemplo: 0.5 para reducir al 50%)
+      // Obtener las dimensiones del PDF de la respuesta de la API
+      const pageInfo = result.pages[0];
+      const pageWidth = pageInfo.width;
+      const pageHeight = pageInfo.height;
   
-      // Recorrer los campos del resultado y dibujar los recuadros
-      const document = result.documents[0]; // Asumimos que hay al menos un documento
-      
-      const fabricCanvasWidth = fabricCanvas.getWidth();
-      const fabricCanvasHeight = fabricCanvas.getHeight();
-      console.log('Canvas Width:', fabricCanvasWidth, 'Canvas Height:', fabricCanvasHeight);
-      const page1Width = result.pages[0].width;
-      const page1Heigth = result.pages[0].height;
-      console.log('Page Width:', page1Width, 'Page Height:', page1Heigth);
-      const widthScaleFactor = fabricCanvasWidth / page1Width;
-      const heightScaleFactor = fabricCanvasHeight / page1Heigth;
-
+      // Calcular los factores de escala basados en el tamaño del canvas y las dimensiones de la página
+      const widthScaleFactor = fabricCanvas.getWidth() / pageWidth;
+      const heightScaleFactor = fabricCanvas.getHeight() / pageHeight;
+  
+      const document = result.documents[0];
       if (document && document.fields) {
         Object.keys(document.fields).forEach((fieldName) => {
           const field = document.fields[fieldName];
-          const { boundingRegions, valueString } = field; // Extraer el texto y la región de cada campo
+          const { boundingRegions, valueString } = field;
   
           if (boundingRegions && boundingRegions.length > 0) {
             boundingRegions.forEach((region: any) => {
               const { polygon } = region;
   
-              // Extraer las coordenadas normalizadas del polígono
-              const [x1, y1, x2, y2, x3, y3, x4, y4] = polygon;
-
+              // Extraer las coordenadas del polígono
+              const [x1, y1, , , x3, y3] = polygon;
+  
+              // Escalar las coordenadas al tamaño del canvas
               const scaledX1 = x1 * widthScaleFactor;
               const scaledY1 = y1 * heightScaleFactor;
               const scaledX3 = x3 * widthScaleFactor;
-              const scaledY3 = y3 * widthScaleFactor;
-              const scaledY4 = y4 * heightScaleFactor;
+              const scaledY3 = y3 * heightScaleFactor;
   
               // Crear el recuadro en el canvas de fabric.js
               const rect = new fabric.Rect({
-                left: scaledX3,
-                top: scaledY3,
-                width: scaledX1 - scaledX3,
-                height: scaledY1 - scaledY4,
+                left: scaledX1,
+                top: scaledY1,
+                width: scaledX3 - scaledX1,
+                height: scaledY3 - scaledY1,
                 fill: 'rgba(0, 0, 255, 0.1)',
                 stroke: 'blue',
                 strokeWidth: 2,
