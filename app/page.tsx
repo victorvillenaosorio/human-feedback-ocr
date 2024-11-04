@@ -1,10 +1,10 @@
 'use client';
 import { useState, useRef } from 'react';
 import * as fabric from 'fabric';
-import * as pdfjsLib from 'pdfjs-dist/build/pdf';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 // Configurar manualmente el worker de PDF.js con una URL desde la CDN
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.worker.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.worker.min.mjs';
 
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -80,6 +80,9 @@ export default function Home() {
       fabricCanvas.setHeight(viewport.height);
       fabricCanvas.selection = false;
   
+      // Factor de escala para ajustar el tamaño de los recuadros
+      const scaleFactor = 0.1; // Prueba ajustando este valor (ejemplo: 0.5 para reducir al 50%)
+  
       // Recorrer los campos del resultado y dibujar los recuadros
       const document = result.documents[0]; // Asumimos que hay al menos un documento
       if (document && document.fields) {
@@ -92,13 +95,13 @@ export default function Home() {
               const { polygon } = region;
   
               // Extraer las coordenadas normalizadas del polígono
-              const [x1, y1, x2, y2, x3, y3, x4, y4] = polygon;
+              const [x1, y1, /* x2, y2, */ x3, y3, /* x4, y4 */] = polygon;
   
-              // Escalar las coordenadas al tamaño real del lienzo
-              const scaledX1 = x1 * viewport.width;
-              const scaledY1 = y1 * viewport.height;
-              const scaledX3 = x3 * viewport.width;
-              const scaledY3 = y3 * viewport.height;
+              // Escalar las coordenadas al tamaño real del lienzo con el factor de escala
+              const scaledX1 = x1 * viewport.width * scaleFactor;
+              const scaledY1 = y1 * viewport.height * scaleFactor;
+              const scaledX3 = x3 * viewport.width * scaleFactor;
+              const scaledY3 = y3 * viewport.height * scaleFactor;
   
               // Crear el recuadro en el canvas de fabric.js
               const rect = new fabric.Rect({
@@ -131,6 +134,7 @@ export default function Home() {
   
     fileReader.readAsArrayBuffer(file);
   };
+  
   
   
   
