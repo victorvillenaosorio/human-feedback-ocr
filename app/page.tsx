@@ -23,6 +23,8 @@ export default function Home() {
   const [isCollapsed, setIsCollapsed] = useState(true); // Estado para controlar el panel colapsable
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fabricCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [rectangles, setRectangles] = useState<{ [key: string]: fabric.Rect }>({}); // Estado para almacenar los recuadros
+  const colors = useRef<{ [key: string]: string }>({}); // Almacena colores de etiquetas y recuadros
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -99,13 +101,18 @@ export default function Home() {
       const heightScaleFactor = fabricCanvas.getHeight() / pageHeight;
 
       const document = result.documents[0];
+      const rectanglesMap: { [key: string]: fabric.Rect } = {};
+
       if (document && document.fields) {
         Object.keys(document.fields).forEach((fieldName, index) => {
           const field = document.fields[fieldName];
           const { boundingRegions } = field;
 
-          // Generar un color único para cada campo
-          const color = generateRandomColor();
+          // Generar y almacenar un color único para cada campo
+          if (!colors.current[fieldName]) {
+            colors.current[fieldName] = generateRandomColor();
+          }
+          const color = colors.current[fieldName];
 
           if (boundingRegions && boundingRegions.length > 0) {
             boundingRegions.forEach((region: any) => {
@@ -130,15 +137,33 @@ export default function Home() {
               });
 
               fabricCanvas.add(rect);
+              rectanglesMap[fieldName] = rect; // Guardar el rectángulo en el mapa
             });
           }
         });
       } else {
         console.error('El resultado no tiene un formato esperado. No se puede procesar.');
       }
+
+      setRectangles(rectanglesMap); // Guardar los recuadros en el estado
     };
 
     fileReader.readAsArrayBuffer(file);
+  };
+
+  // Manejar clic en una etiqueta para resaltar el recuadro
+  const handleHighlightRectangle = (fieldName: string) => {
+    const rect = rectangles[fieldName];
+    if (rect) {
+      rect.set({ strokeWidth: 4 }); // Aumentar el grosor del borde para resaltar
+      rect.set('stroke', colors.current[fieldName]); // Usar el color de la etiqueta
+      rect.canvas?.renderAll();
+
+      setTimeout(() => {
+        rect.set({ strokeWidth: 2 }); // Restaurar el grosor del borde
+        rect.canvas?.renderAll();
+      }, 1000);
+    }
   };
 
   return (
@@ -163,22 +188,23 @@ export default function Home() {
               </pre>
             )}
             <div style={{ marginTop: '20px' }}>
-              {Object.keys(result.documents[0].fields).map((fieldName, index) => {
-                const color = generateRandomColor();
-                return (
-                  <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                    <div
-                      style={{
-                        width: '16px',
-                        height: '16px',
-                        backgroundColor: color,
-                        marginRight: '8px',
-                      }}
-                    ></div>
-                    <span>{fieldName}: {result.documents[0].fields[fieldName].valueString}</span>
-                  </div>
-                );
-              })}
+              {Object.keys(result.documents[0].fields).map((fieldName, index) => (
+                <div
+                  key={index}
+                  style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }}
+                  onClick={() => handleHighlightRectangle(fieldName)}
+                >
+                  <div
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      backgroundColor: colors.current[fieldName],
+                      marginRight: '8px',
+                    }}
+                  ></div>
+                  <span>{fieldName}: {result.documents[0].fields[fieldName].valueString}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
