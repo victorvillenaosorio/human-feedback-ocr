@@ -21,6 +21,7 @@ export default function Home() {
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true); // Estado para controlar el panel colapsable
+  const [highlightedField, setHighlightedField] = useState<string | null>(null); // Estado para la etiqueta resaltada
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fabricCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [rectangles, setRectangles] = useState<{ [key: string]: fabric.Rect }>({}); // Estado para almacenar los recuadros
@@ -133,7 +134,12 @@ export default function Home() {
                 fill: color + '33', // Transparencia del color
                 stroke: color,
                 strokeWidth: 2,
-                selectable: false,
+                selectable: true,
+              });
+
+              // Añadir evento de clic para resaltar la etiqueta correspondiente
+              rect.on('mousedown', () => {
+                setHighlightedField(fieldName);
               });
 
               fabricCanvas.add(rect);
@@ -191,7 +197,13 @@ export default function Home() {
               {Object.keys(result.documents[0].fields).map((fieldName, index) => (
                 <div
                   key={index}
-                  style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: '8px',
+                    cursor: 'pointer',
+                    backgroundColor: highlightedField === fieldName ? '#f0f8ff' : 'transparent', // Resaltar etiqueta seleccionada
+                  }}
                   onClick={() => handleHighlightRectangle(fieldName)}
                 >
                   <div
