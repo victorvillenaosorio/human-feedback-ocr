@@ -126,9 +126,11 @@ export default function Home() {
               const scaledX3 = x3 * widthScaleFactor;
               const scaledY3 = y3 * heightScaleFactor;
 
+              const correctiveFactorPX = 20;
+
               const rect = new fabric.Rect({
-                left: scaledX1,
-                top: scaledY1,
+                left: scaledX1 - correctiveFactorPX,
+                top: scaledY1 - correctiveFactorPX,
                 width: scaledX3 - scaledX1,
                 height: scaledY3 - scaledY1,
                 fill: color + '33', // Transparencia del color
@@ -173,45 +175,39 @@ export default function Home() {
   };
 
   return (
-    <div style={{ display: 'flex', gap: '20px' }}>
-      {/* Columna izquierda para mostrar las etiquetas y sus valores */}
-      <div style={{ width: '50%' }}>
-        <h2>Subir Documento</h2>
-        <input type="file" onChange={handleFileChange} accept="application/pdf" />
-        <button onClick={handleUpload} disabled={loading}>
+    <div style={styles.container}>
+      <div style={styles.leftPanel}>
+        <h2 style={styles.title}>Subir Documento</h2>
+        <input type="file" onChange={handleFileChange} accept="application/pdf" style={styles.fileInput} />
+        <button onClick={handleUpload} disabled={loading} style={styles.button}>
           {loading ? 'Procesando...' : 'Subir Documento'}
         </button>
 
         {result && (
-          <div style={{ marginTop: '20px' }}>
-            <h3>Resultados del análisis</h3>
-            <button onClick={() => setIsCollapsed(!isCollapsed)}>
+          <div style={styles.resultPanel}>
+            <h3 style={styles.subtitle}>Resultados del análisis</h3>
+            <button onClick={() => setIsCollapsed(!isCollapsed)} style={styles.collapseButton}>
               {isCollapsed ? 'Mostrar JSON' : 'Ocultar JSON'}
             </button>
             {!isCollapsed && (
-              <pre style={{ maxHeight: '200px', overflowY: 'auto', marginTop: '10px' }}>
+              <pre style={styles.jsonViewer}>
                 {JSON.stringify(result, null, 2)}
               </pre>
             )}
-            <div style={{ marginTop: '20px' }}>
+            <div style={styles.labelsContainer}>
               {Object.keys(result.documents[0].fields).map((fieldName, index) => (
                 <div
                   key={index}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginBottom: '8px',
-                    cursor: 'pointer',
-                    backgroundColor: highlightedField === fieldName ? '#f0f8ff' : 'transparent', // Resaltar etiqueta seleccionada
+                    ...styles.labelItem,
+                    backgroundColor: highlightedField === fieldName ? '#E3F2FD' : 'transparent',
                   }}
                   onClick={() => handleHighlightRectangle(fieldName)}
                 >
                   <div
                     style={{
-                      width: '16px',
-                      height: '16px',
+                      ...styles.colorSquare,
                       backgroundColor: colors.current[fieldName],
-                      marginRight: '8px',
                     }}
                   ></div>
                   <span>{fieldName}: {result.documents[0].fields[fieldName].valueString}</span>
@@ -223,13 +219,118 @@ export default function Home() {
       </div>
 
       {/* Columna derecha para visualizar el PDF con recuadros */}
-      <div style={{ position: 'relative', width: '50%', height: 'auto', backgroundColor: '#fff' }}>
+      <div style={styles.rightPanel}>
         {/* Canvas para el PDF */}
-        <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, zIndex: 0 }}></canvas>
+        <canvas ref={canvasRef} style={styles.canvas}></canvas>
         
         {/* Canvas para los recuadros de fabric.js */}
-        <canvas ref={fabricCanvasRef} style={{ position: 'absolute', top: 0, left: 0, zIndex: 1 }}></canvas>
+        <canvas ref={fabricCanvasRef} style={styles.canvasOverlay}></canvas>
       </div>
     </div>
   );
 }
+
+// Estilos de Material Design
+const styles = {
+  container: {
+    display: 'flex',
+    gap: '20px',
+    padding: '20px',
+    backgroundColor: '#F9F9F9',
+    fontFamily: 'Arial, sans-serif',
+  },
+  leftPanel: {
+    width: '50%',
+    padding: '20px',
+    backgroundColor: '#FFFFFF',
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.1)',
+    borderRadius: '8px',
+  },
+  title: {
+    color: '#1976D2',
+    fontSize: '24px',
+    marginBottom: '16px',
+  },
+  fileInput: {
+    display: 'block',
+    marginBottom: '16px',
+    padding: '8px',
+  },
+  button: {
+    display: 'block',
+    padding: '10px 20px',
+    backgroundColor: '#1976D2',
+    color: '#FFFFFF',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '16px',
+    marginBottom: '16px',
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.2)',
+  },
+  resultPanel: {
+    marginTop: '20px',
+  },
+  subtitle: {
+    color: '#424242',
+    fontSize: '20px',
+    marginBottom: '12px',
+  },
+  collapseButton: {
+    padding: '6px 12px',
+    backgroundColor: '#E0E0E0',
+    color: '#424242',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    marginBottom: '12px',
+  },
+  jsonViewer: {
+    maxHeight: '200px',
+    overflowY: 'auto' as 'auto', // Definir 'auto' explícitamente
+    padding: '12px',
+    backgroundColor: '#F5F5F5',
+    borderRadius: '4px',
+    fontSize: '14px',
+  },
+  labelsContainer: {
+    marginTop: '20px',
+  },
+  labelItem: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '8px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    marginBottom: '8px',
+    transition: 'background-color 0.3s',
+  },
+  colorSquare: {
+    width: '16px',
+    height: '16px',
+    borderRadius: '2px',
+    marginRight: '8px',
+  },
+  rightPanel: {
+    width: '50%',
+    position: 'relative' as 'relative',
+    backgroundColor: '#FFFFFF',
+    padding: '20px',
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.1)',
+    borderRadius: '8px',
+  },
+  canvas: {
+    position: 'absolute' as 'absolute',
+    top: 0,
+    left: 0,
+    zIndex: 0,
+    borderRadius: '4px',
+  },
+  canvasOverlay: {
+    position: 'absolute' as 'absolute',
+    top: 0,
+    left: 0,
+    zIndex: 1,
+  },
+};
